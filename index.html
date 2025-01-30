@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A-Frame Game</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- Подключение дополнительных компонентов для WASD и Gamepad -->
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.loaders.min.js"></script>
     <style>
         body { margin: 0; }
         #hud {
@@ -21,35 +23,36 @@
         <p>Счет: <span id="score">0</span></p>
         <p>Время: <span id="timer">60</span> секунд</p>
     </div>
-
-    <a-scene>
+    <a-scene physics>
         <!-- Небо и пол -->
         <a-sky color="#88ccee"></a-sky>
         <a-plane position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#7BC8A4"></a-plane>
-
         <!-- Камера и управление -->
-        <a-entity camera look-controls position="0 1.6 0">
-            <a-entity position="0 0 -1" geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03" material="color: red; shader: flat;" cursor></a-entity>
+        <a-entity camera look-controls wasd-controls gamepad-controls position="0 1.6 0">
+            <a-entity cursor="fuse: true; fuseTimeout: 500"
+                      position="0 0 -1"
+                      geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                      material="color: red; shader: flat;">
+            </a-entity>
         </a-entity>
-
         <!-- Объекты для сбора -->
-        <a-box position="2 1 -3" color="orange" class="collectible"></a-box>
-        <a-sphere position="-2 1 -5" radius="0.5" color="blue" class="collectible"></a-sphere>
-        <a-cylinder position="1 1 -7" radius="0.3" height="1" color="purple" class="collectible"></a-cylinder>
-
-        <!-- 3D модель -->
-        <a-entity gltf-model="GangsterDuckGLTF.glb" position="0 0 -10" scale="0.5 0.5 0.5"></a-entity>
+        <a-box position="2 1 -3" color="orange" class="collectible" dynamic-body></a-box>
+        <a-sphere position="-2 1 -5" radius="0.5" color="blue" class="collectible" dynamic-body></a-sphere>
+        <a-cylinder position="1 1 -7" radius="0.3" height="1" color="purple" class="collectible" dynamic-body></a-cylinder>
+        <!-- 3D модель с маркером на карте -->
+        <a-entity gltf-model="simple_pudding_-_fbx.glb" position="0 0 -10" scale="0.5 0.5 0.5" id="model">
+            <a-entity position="0 0 0" geometry="primitive: box" depth="0.1" height="0.1" width="0.1" color="green" visible="false" id="model-marker"></a-entity>
+        </a-entity>
+        <!-- Отображение маркера на карте -->
+        <a-entity id="map-marker" geometry="primitive: box" depth="0.1" height="0.1" width="0.1" color="green" position="0 0 0" visible="true"></a-entity>
     </a-scene>
-
     <script>
         let score = 0;
         let timeLeft = 60;
-
         // Таймер
         const timerElement = document.getElementById('timer');
         const scoreElement = document.getElementById('score');
         const collectibles = document.querySelectorAll('.collectible');
-
         const interval = setInterval(() => {
             if (timeLeft > 0) {
                 timeLeft--;
@@ -59,23 +62,38 @@
                 endGame();
             }
         }, 1000);
-
         // Обработка столкновений
         collectibles.forEach(item => {
-            item.setAttribute('dynamic-body', '');
-
             item.addEventListener('click', () => {
                 score++;
                 scoreElement.textContent = score;
                 item.setAttribute('visible', 'false');
             });
         });
-
         // Завершение игры
         function endGame() {
             alert(`Игра окончена! Ваш счет: ${score}`);
             location.reload();
         }
+
+        // Обновление позиции маркера на карте
+        const model = document.getElementById('model');
+        const modelMarker = document.getElementById('model-marker');
+        const mapMarker = document.getElementById('map-marker');
+
+        function updateMapMarker() {
+            const modelPosition = new THREE.Vector3();
+            model.object3D.getWorldPosition(modelPosition);
+            mapMarker.setAttribute('position', `${modelPosition.x} ${modelPosition.y} ${modelPosition.z}`);
+        }
+
+        // Обновляем позицию маркера каждую секунду
+        setInterval(updateMapMarker, 1000);
+
+        // Также обновляем при каждом перемещении камеры или объектов
+        document.querySelector('a-scene').addEventListener('renderstart', () => {
+            updateMapMarker();
+        });
     </script>
 </body>
 </html>
